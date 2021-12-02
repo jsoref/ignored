@@ -12,4 +12,22 @@ jobs:
       uses: actions/checkout@v2
     - name: introspect
       run: |
-        ls -l
+        cd $GITHUB_WORKSPACE
+        FILES=$(mktemp)
+        find . | sort | tee $FILES
+        if [ -z "$ACT" ]; then
+          echo FILES_GHA=$FILES >> $GITHUB_ENV
+        fi
+    - name: act
+      run: |
+        if [ -z "$ACT" ]; then
+          curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+          FILES=$(mktemp)
+          act -P catthehacker/ubuntu:act-latest -W .github/workflows/introspect.yml | perl -ne 'next unless s{\Q[What do I have/Introspection]   | \E}{};print' | tee $FILES
+          echo FILES_ACT=$FILES >> $GITHUB_ENV
+        fi
+    - name: compare
+      run: |
+        if [ -z "$ACT" ]; then
+          diff -u "$FILES_GHA" "$FILES_ACT"
+        fi
